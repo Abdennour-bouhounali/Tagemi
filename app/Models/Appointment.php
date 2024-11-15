@@ -11,7 +11,7 @@ class Appointment extends Model
     protected $fillable = [
         'user_id',
         'name',
-        'last_name',       // New field
+        'lastName',       // New field
         'patient_id',
         'specialty_id',
         'specialty_order',

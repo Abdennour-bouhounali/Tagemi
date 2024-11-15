@@ -73,6 +73,8 @@ class AppointmentController extends Controller implements HasMiddleware
             'specialties' => 'required|array|min:1',
             'specialties.*.specialty_id' => 'required|exists:specialties,id',
         ]);
+        $validatedData['diseases'] = $validatedData['diseases'] ?? 'nothing';
+
         
         // Get the authenticated user's ID
         $userId = 1;
