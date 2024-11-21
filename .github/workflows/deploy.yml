@@ -26,7 +26,7 @@ jobs:
       - name: Deploy Laravel Backend to Hostinger
         run: |
           # Copy the backend filess
-          scp -P ${{ secrets.HOSTINGER_PORT }} -r * ${{ secrets.HOSTINGER_USERNAME }}@${{ secrets.HOSTINGER_HOST }}:/home/u412486568/domains/api.tagemi-foundation.org
+          scp -q -P ${{ secrets.HOSTINGER_PORT }} -r * ${{ secrets.HOSTINGER_USERNAME }}@${{ secrets.HOSTINGER_HOST }}:/home/u412486568/domains/api.tagemi-foundation.org
 
           # SSH into the server to run Laravel commands
           ssh -p ${{ secrets.HOSTINGER_PORT }} ${{ secrets.HOSTINGER_USERNAME }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
