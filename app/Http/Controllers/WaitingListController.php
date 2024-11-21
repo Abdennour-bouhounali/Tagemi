@@ -15,7 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Routing\Controllers\HasMiddleware;
-
+use Illuminate\Support\Facades\DB;
 class WaitingListController extends Controller implements HasMiddleware
 {
     public static function middleware()
@@ -57,7 +57,7 @@ class WaitingListController extends Controller implements HasMiddleware
     public function getwaitinglist(){
         // return response()->json(['message'=>'hi']);
         // Retrieve the first 10 'Present' status appointments for each specialty
-        $appointments = Appointment::select('specialty_id', 'patient_id', 'name')
+        $appointments = Appointment::select('specialty_id', 'patient_id', 'name','lastName')
         ->where('status', 'Present')
         ->orderBy('specialty_id')
         ->orderBy('position')
@@ -75,6 +75,7 @@ class WaitingListController extends Controller implements HasMiddleware
                 return [
                     'patient_id' => $appointment->patient_id,
                     'name' => $appointment->name,
+                    'lastName' => $appointment->lastName,
                 ];
             }),
         ];
@@ -134,9 +135,44 @@ class WaitingListController extends Controller implements HasMiddleware
             $next_appointment = Appointment::where('patient_id', $appointment->patient_id)
             ->where('status', 'Waiting')
             ->first();
+            
+            
 
+           
+           
             if ($next_appointment) {
+                $specialtyId = $next_appointment->specialty_id;
+
+
+                $uniqueAppointments = DB::table('appointments')
+    ->select('appointments.*')
+    ->joinSub(
+        DB::table('appointments')
+            ->select('patient_id')
+            ->groupBy('patient_id')
+            ->havingRaw('COUNT(*) = 1'), // Patients with exactly one appointment
+        'unique_patients',
+        'appointments.patient_id',
+        '=',
+        'unique_patients.patient_id'
+    )
+    ->where('appointments.specialty_id', $specialtyId) // Filter by specific specialty
+    ->get();
+
+            
+
+
+
+           
+    if($uniqueAppointments){
+        $maxPosition = $uniqueAppointments->max('position'); 
+    }else{
+        $maxPosition = Appointment::where('specialty_id', $specialtyId)->max('position');
+    }
+        
+
             $next_appointment->status = 'Present';
+            $next_appointment->position = $maxPosition+1;
             $next_appointment->save();
                 }
 
@@ -186,6 +222,7 @@ class WaitingListController extends Controller implements HasMiddleware
     public function GetWaitingListBySpeciality(Request $request,$id){
         $user_role = Auth::user()->role_id;
         $user_speciality_id = Auth::user()->speciality;
+        $speciality = Specialty::find($id)->name;
         // return ['info'=>Auth::user()];
         if ($user_role == 4||$user_role == 1) {
             // Subquery to get the minimum time and minimum id for each patient
@@ -197,7 +234,7 @@ class WaitingListController extends Controller implements HasMiddleware
                 ->orderBy('position', 'asc')
                 ->get();
 
-        return response()->json(['appointments' => $appointments]);
+        return response()->json(['appointments' => $appointments,'speciality' => $speciality]);
         } else {
             return response()->json(['message' => 'You are not authorized'], 403);
         }

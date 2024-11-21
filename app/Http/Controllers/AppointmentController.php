@@ -65,7 +65,7 @@ class AppointmentController extends Controller implements HasMiddleware
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'lastName' => 'required|string|max:255',
-            'birthday' => 'required|date',
+            'birthday' => 'required|date', // Ensures the input is in dd/mm/yyyy format
             'residence' => 'required|string|max:255',
             'diseases' => 'nullable|string', // Optional field, can be null
             'phone' => 'required|string|max:20',
@@ -74,6 +74,11 @@ class AppointmentController extends Controller implements HasMiddleware
             'specialties.*.specialty_id' => 'required|exists:specialties,id',
         ]);
         $validatedData['diseases'] = $validatedData['diseases'] ?? 'nothing';
+        // Get the birthday from the request
+        $birthday = $request->input('birthday');
+
+        // Convert the date from dd/mm/yyyy to yyyy-mm-dd format using Carbon
+        $formattedBirthday = $validatedData['birthday'];
 
         
         // Get the authenticated user's ID
@@ -123,6 +128,7 @@ class AppointmentController extends Controller implements HasMiddleware
         
 
         $open = false;
+        $speciality_order_id = 0;
         foreach ($validatedData['specialties'] as $specialty) {
             $specialtyId = $specialty['specialty_id'];
 
@@ -132,8 +138,14 @@ class AppointmentController extends Controller implements HasMiddleware
                 // Retrieve the duration for the specialty in minutes
                 $specialtyDuration = Specialty::find($specialtyId)->duration; // Assuming the duration is stored in minutes
 
+
+
                 // Calculate the total number of minutes to add to the starting time
-                $appointmentCount = Appointment::where('specialty_id', $specialtyId)->count();
+                  
+                $appointmentCount = Appointment::where('specialty_id', $specialtyId)
+                ->where('specialty_order', 1)
+                ->count();   
+
                 $totalMinutesToAdd = $appointmentCount * $specialtyDuration;
         
                 // Calculate the new time
@@ -147,13 +159,15 @@ class AppointmentController extends Controller implements HasMiddleware
                 
                 if ($time < $minTime) {
                     $minTime = $time;
+                    $speciality_order_id = $specialtyId;
+
                 }
                 $open = true;
             }
         }
 
         if($open){
-            $message = 'نرجوا المجيء على الساعة ' . $minTime->format('H:i');
+            $message = 'يرجى المجيء على الساعة ' . $minTime->format('H:i');
         }
 
     
@@ -176,14 +190,14 @@ class AppointmentController extends Controller implements HasMiddleware
                 'user_id' => $userId,
                 'name' => $validatedData['name'],
                 'lastName' => $validatedData['lastName'],
-                'birthday' => $validatedData['birthday'],
+                'birthday' => $formattedBirthday,
                 'residence' => $validatedData['residence'],
                 'diseases' => $validatedData['diseases'],
                 'phone' => $validatedData['phone'],
                 'sex' => $validatedData['sex'],
                 'patient_id' => $nextPatientId,
                 'specialty_id' => $specialtyId,
-                'specialty_order' => 1,
+                'specialty_order' => $speciality_order_id === $specialtyId ? 1 : 0,
                 'time' => $formattedMinTime,
                 'position' => $position
             ]);
@@ -217,7 +231,7 @@ class AppointmentController extends Controller implements HasMiddleware
                             'user_id' => $userId,
                             'name' => $validatedData['name'],
                             'lastName' => $validatedData['lastName'],
-                            'birthday' => $validatedData['birthday'],
+                            'birthday' => $formattedBirthday,
                             'residence' => $validatedData['residence'],
                             'diseases' => $validatedData['diseases'],
                             'phone' => $validatedData['phone'],
@@ -266,7 +280,7 @@ class AppointmentController extends Controller implements HasMiddleware
                 $specialtyId = $appointment->specialty_id;
     
                 // Get the current highest position for the given specialty
-                $maxPosition = Appointment::where('specialty_id', $specialtyId)->max('position');
+                $maxPosition = Appointment::where('specialty_id', $specialtyId)->where('status','Present')->max('position');
         
                 // Assign the next position
                 $position = $maxPosition ? $maxPosition + 1 : 1;
@@ -317,7 +331,7 @@ class AppointmentController extends Controller implements HasMiddleware
                 }
 
             $appointment->position = 0;
-            $appointment->name = $appointment->name . ' ( Special Case )';
+            $appointment->name = $appointment->name . '(حالة خاصة)';
             $appointment->save();
             $i = $i + 1;
     
