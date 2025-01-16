@@ -28,4 +28,9 @@ class Specialty extends Model
     {
         return $this->hasMany(User::class);
     }
+    public function event()
+{
+    return $this->belongsTo(Event::class);
+}
+
 }

@@ -40,7 +40,7 @@ class WaitingListController extends Controller implements HasMiddleware
     public function index()
     {
         $user_role = Auth::user()->role_id;
-        if($user_role == 1 || $user_role == 4){
+        if($user_role == 1 || $user_role == 4 || $user_role == 6){
             // Get all users with appointments where status is 'present'
             $presents = Appointment::where('status','Present')
                     ->with(['specialty:id,name']) // Select only id and name of specialty
@@ -60,7 +60,7 @@ class WaitingListController extends Controller implements HasMiddleware
         $appointments = Appointment::select('specialty_id', 'patient_id', 'name','lastName')
         ->where('status', 'Present')
         ->orderBy('specialty_id')
-        ->orderBy('position')
+        ->orderBy('orderList')
         ->get()
         ->groupBy('specialty_id')
         ->map(function ($appointments) {
@@ -84,6 +84,7 @@ class WaitingListController extends Controller implements HasMiddleware
         // Return the data as JSON
         return response()->json($data);
     }
+    
     public function deleteAppointmentsAndAdmins()
     {
         // Delete all appointments
@@ -145,36 +146,36 @@ class WaitingListController extends Controller implements HasMiddleware
 
 
                 $uniqueAppointments = DB::table('appointments')
-    ->select('appointments.*')
-    ->joinSub(
-        DB::table('appointments')
-            ->select('patient_id')
-            ->groupBy('patient_id')
-            ->havingRaw('COUNT(*) = 1'), // Patients with exactly one appointment
-        'unique_patients',
-        'appointments.patient_id',
-        '=',
-        'unique_patients.patient_id'
-    )
-    ->where('appointments.specialty_id', $specialtyId) // Filter by specific specialty
-    ->get();
+                ->select('appointments.*')
+                ->joinSub(
+                    DB::table('appointments')
+                        ->select('patient_id')
+                        ->groupBy('patient_id')
+                        ->havingRaw('COUNT(*) = 1'), // Patients with exactly one appointment
+                    'unique_patients',
+                    'appointments.patient_id',
+                    '=',
+                    'unique_patients.patient_id'
+                )
+                ->where('appointments.specialty_id', $specialtyId) // Filter by specific specialty
+                ->get();
 
             
 
 
 
            
-    if($uniqueAppointments){
-        $maxPosition = $uniqueAppointments->max('position'); 
-    }else{
-        $maxPosition = Appointment::where('specialty_id', $specialtyId)->max('position');
-    }
-        
-
-            $next_appointment->status = 'Present';
-            $next_appointment->position = $maxPosition+1;
-            $next_appointment->save();
+                if($uniqueAppointments){
+                    $maxPosition = $uniqueAppointments->max('orderList'); 
+                }else{
+                    $maxPosition = Appointment::where('specialty_id', $specialtyId)->max('orderList');
                 }
+                    
+
+                $next_appointment->status = 'Present';
+                $next_appointment->orderList = $maxPosition+1;
+                $next_appointment->save();
+            }
 
 
            return response()->json(['message' => 'Patient added to showed in the next speciality'], 201);
@@ -204,11 +205,11 @@ class WaitingListController extends Controller implements HasMiddleware
                 //     return response()->json(['message' => 'No appointments found for this patient'], 404);
                 // }
                 // Get the current highest position for the given specialty
-                $maxPosition = Appointment::where('specialty_id', $appointment->specialty_id)->max('position');
+                $maxPosition = Appointment::where('specialty_id', $appointment->specialty_id)->max('orderList');
 
                 // Assign the next position
                 $position = $maxPosition ? $maxPosition + 1 : 1;
-                $appointment->position = $position;
+                $appointment->orderList = $position;
 
                 $appointment->save();
                 return ['message' => 'The Patient get the last position'];
@@ -224,14 +225,14 @@ class WaitingListController extends Controller implements HasMiddleware
         $user_speciality_id = Auth::user()->speciality;
         $speciality = Specialty::find($id)->name;
         // return ['info'=>Auth::user()];
-        if ($user_role == 4||$user_role == 1) {
+        if ($user_role == 4||$user_role == 1 || $user_role == 6) {
             // Subquery to get the minimum time and minimum id for each patient
 
 
         // Join the subquery back to the appointments table to get full details
         $appointments = Appointment::where('specialty_id',$id)
                  ->where('status','Present')
-                ->orderBy('position', 'asc')
+                ->orderBy('orderList', 'asc')
                 ->get();
 
         return response()->json(['appointments' => $appointments,'speciality' => $speciality]);

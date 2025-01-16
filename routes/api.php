@@ -43,6 +43,8 @@ Route::apiResource('activities', ActivityController::class);
 Route::apiResource('appointment',AppointmentController::class);
 Route::post('appointment/ConfirmPresence/{id}',[AppointmentController::class,'ConfirmPresence']);
 Route::post('appointment/ConfirmPresenceDelay/{id}',[AppointmentController::class,'ConfirmPresenceDelay']);
+Route::post('appointment/addComment',[AppointmentController::class,'addComment']);
+// /api/addComment
 Route::post('appointment/SpecialCase/{id}',[AppointmentController::class,'SpecialCase']);
 Route::get('waitinglist/getwaitinglist',[WaitingListController::class,'getwaitinglist']);
 
@@ -51,6 +53,9 @@ Route::apiResource('projects', FutureProjectController::class);
 Route::post('projects/storeProjectImages',[FutureProjectController::class,'storeProjectImages']);
 Route::post('projects/edit/{id}',[ FutureProjectController::class,'editProject']);
 Route::delete('projects/delete/{id}',[FutureProjectController::class,'delete']);
+
+Route::post('/appointment/delete-duplicates', [AppointmentController::class, 'deleteDuplicates']);
+
 
 Route::get('activities/showByActivitiesType/{id}',[ActivityController::class,'showByActivitiesType']);
 Route::post('activities/makeSpecial/{id}',[ActivityController::class,'makeSpecial']);
